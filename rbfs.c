@@ -10,7 +10,7 @@ struct file_system_type rbfs_type = {
 	.owner = THIS_MODULE,
 	.name = "rbfs",
 	.mount = rbfs_mount,
-	.kill_sb = kill_block_super,
+	.kill_sb = rbfs_put_super, //this function just does nothing
 	.fs_flags = 0	
 };
 

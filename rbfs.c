@@ -26,13 +26,20 @@ struct inode_operations rbfs_dir_inode_operations = {
 };
 
 struct inode_operations rbfs_file_inode_operations = {
-	.getattr = simple_getattr, 
+	.getattr = rbfs_getattr,
 	.setattr = simple_setattr
 };
 
 struct file_operations rbfs_file_operations = {
 	.read = rbfs_read,
-	.write = rbfs_write
+	.aio_read = generic_file_aio_read,
+	.write = rbfs_write,
+	.aio_write = generic_file_aio_write,
+	.fsync = noop_fsync,
+	.mmap = generic_file_mmap,
+	.splice_read = generic_file_splice_read,
+	.splice_write = generic_file_splice_write,
+	.llseek	= generic_file_llseek
 };
 
 struct inode *rbfs_make_file_inode(struct super_block *super, struct inode *dir) {
@@ -57,24 +64,72 @@ int rbfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev
 }
 
 int rbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl) {
+	printk("making file %s\n", dentry->d_name.name);
 	return rbfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }
 
 
-ssize_t rbfs_read(struct file *file, char __user *buf, size_t len, loff_t *ppos) {
-	//everything is /dev/null
-	memset(buf, 0, len);
+ssize_t rbfs_read(struct file *file, char __user *buf, size_t len, loff_t *pos) {
+	struct file_data *fd;
+	printk("beginning read\n");
+	if (file->f_dentry->d_fsdata == NULL) {
+		return 0;
+	} else {
+		fd = (struct file_data *) file->f_dentry->d_fsdata;
+	}
+	if (*pos + len > fd->len) len = fd->len - *pos;
+	
+	memcpy(buf, fd->data + *pos, len);
+	*pos += len;
+	printk("read %d bytes\n", (int)len);
 	return len;
 }
-ssize_t rbfs_write(struct file *file, const char __user *buf, size_t len, loff_t *ppos) {
-	//writing does nothing.
+ssize_t rbfs_write(struct file *file, const char __user *buf, size_t len, loff_t *pos) {
+	struct file_data *fd;
+	ssize_t size_needed;
+	if (file->f_dentry->d_fsdata == NULL) {
+		file->f_dentry->d_fsdata = kmalloc(sizeof(struct file_data), GFP_USER);
+		fd = file->f_dentry->d_fsdata;
+		fd->len = 0;
+		fd->allocated = MIN_FILE_SIZE;
+		fd->data = kmalloc(fd->allocated, GFP_USER);
+		file->f_dentry->d_fsdata = fd;
+	} else {
+		fd = (struct file_data *) file->private_data;
+	}
+	size_needed = *pos + len;
+	if (size_needed > fd->allocated) {
+		fd->allocated = size_needed;
+		fd->data = krealloc(fd->data, size_needed, GFP_USER);
+	}
+	if (size_needed > fd->len) {
+		fd->len = size_needed;
+	}
+	//at this point, we should have enough space allocated
+	memcpy(fd->data + *pos, buf, len);
+	*pos += len;
+	printk("wrote %d bytes\n", (int)len);
 	return len;
 }
 
+int rbfs_getattr (struct vfsmount *mount, struct dentry *dentry, struct kstat *kstat) {
+	//struct file_data *fd;
+	int ret;
+	ret = simple_getattr(mount , dentry, kstat);
+	kstat->size = 9001;
+	return ret;
+	/*
+	fd = dentry->d_fsdata;
+	if (fd == NULL) return ret;
+	kstat->size = fd->len;
+	return ret;*/
+}
+int rbfs_setattr(struct dentry *dentry, struct iattr *ia);
 
 int rbfs_fill_super(struct super_block *super, void *data, int silent) {
 	struct inode *root;
 
+	printk("filling superblock\n");
 	super->s_magic = MAGIC_NUMBER;
 	/*super->s_op = &rbfs_super_operations;*/
 
@@ -91,6 +146,7 @@ int rbfs_fill_super(struct super_block *super, void *data, int silent) {
 }
 
 struct dentry *rbfs_mount(struct file_system_type *type, int flags, const char *dev, void *data) {
+	printk("mounting\n");
 	return mount_nodev(type, flags, data, rbfs_fill_super);
 }
 

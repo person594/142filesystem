@@ -14,6 +14,8 @@ struct dentry *rbfs_mount(struct file_system_type *type, int flags, const char *
 void rbfs_put_super(struct super_block *sb);
 int rbfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 
+int rbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl);
+
 
 int init_module(void);
 

@@ -21,7 +21,8 @@ struct super_operations rbfs_super_operations = {
 
 struct inode_operations rbfs_dir_inode_operations = {
 	.lookup = simple_lookup,
-	.mknod = rbfs_mknod
+	.mknod = rbfs_mknod,
+	.create = rbfs_create
 };
 
 struct inode_operations rbfs_file_inode_operations = {
@@ -50,6 +51,11 @@ int rbfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev
 	d_instantiate(dentry, inode);
 	//do we need dget here?
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	return 0;
+}
+
+int rbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl) {
+	return rbfs_mknod(dir, dentry, S_IFREG, 0);
 }
 
 int rbfs_fill_super(struct super_block *super, void *data, int silent) {

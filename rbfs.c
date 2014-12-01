@@ -31,7 +31,8 @@ struct inode_operations rbfs_file_inode_operations = {
 };
 
 struct file_operations rbfs_file_operations = {
-	
+	.read = rbfs_read,
+	.write = rbfs_write
 };
 
 struct inode *rbfs_make_file_inode(struct super_block *super, struct inode *dir) {
@@ -49,14 +50,27 @@ struct inode *rbfs_make_file_inode(struct super_block *super, struct inode *dir)
 int rbfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev) {
 	struct inode *inode = rbfs_make_file_inode(dir->i_sb, dir);
 	d_instantiate(dentry, inode);
+	dget(dentry);
 	//do we need dget here?
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	return 0;
 }
 
 int rbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl) {
-	return rbfs_mknod(dir, dentry, S_IFREG, 0);
+	return rbfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }
+
+
+ssize_t rbfs_read(struct file *file, char __user *buf, size_t len, loff_t *ppos) {
+	//everything is /dev/null
+	memset(buf, 0, len);
+	return len;
+}
+ssize_t rbfs_write(struct file *file, const char __user *buf, size_t len, loff_t *ppos) {
+	//writing does nothing.
+	return len;
+}
+
 
 int rbfs_fill_super(struct super_block *super, void *data, int silent) {
 	struct inode *root;
@@ -65,7 +79,7 @@ int rbfs_fill_super(struct super_block *super, void *data, int silent) {
 	/*super->s_op = &rbfs_super_operations;*/
 
 	root = new_inode(super);
-	root->i_ino = 0;
+	root->i_ino = inode_num++;
 	root->i_sb = super;
 	root->i_atime = root->i_mtime = root->i_ctime = CURRENT_TIME;
 	root->i_op = &rbfs_dir_inode_operations;

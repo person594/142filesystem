@@ -16,6 +16,9 @@ int rbfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev
 
 int rbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl);
 
+ssize_t rbfs_read(struct file *file, char __user *buf, size_t len, loff_t *ppos);
+ssize_t rbfs_write(struct file *file, const char __user *buf, size_t len, loff_t *ppos);
+
 
 int init_module(void);
 

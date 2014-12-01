@@ -95,7 +95,7 @@ ssize_t rbfs_write(struct file *file, const char __user *buf, size_t len, loff_t
 		fd->data = kmalloc(fd->allocated, GFP_USER);
 		file->f_dentry->d_fsdata = fd;
 	} else {
-		fd = (struct file_data *) file->private_data;
+		fd = (struct file_data *) file->f_dentry->d_fsdata;
 	}
 	size_needed = *pos + len;
 	if (size_needed > fd->allocated) {
@@ -113,16 +113,13 @@ ssize_t rbfs_write(struct file *file, const char __user *buf, size_t len, loff_t
 }
 
 int rbfs_getattr (struct vfsmount *mount, struct dentry *dentry, struct kstat *kstat) {
-	//struct file_data *fd;
+	struct file_data *fd;
 	int ret;
 	ret = simple_getattr(mount , dentry, kstat);
-	kstat->size = 9001;
-	return ret;
-	/*
 	fd = dentry->d_fsdata;
 	if (fd == NULL) return ret;
 	kstat->size = fd->len;
-	return ret;*/
+	return ret;
 }
 int rbfs_setattr(struct dentry *dentry, struct iattr *ia);
 
